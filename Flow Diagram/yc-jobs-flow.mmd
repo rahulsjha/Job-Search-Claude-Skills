@@ -1,0 +1,60 @@
+flowchart TD
+    START([/yc-jobs]) --> L1
+
+    subgraph COLLECT["1. Collect (read only on workatastartup.com)"]
+        L1[Open WaaS list<br/>remote, eng, newest first] --> L2[Scroll to end<br/>record company, roles, pay, size, YC page]
+    end
+
+    subgraph DIFF["2. Diff against Hunting sheet"]
+        L2 --> D1[Read Sheet2 jobs + Sheet3 LinkedIn]
+        D1 --> D2{Company in sheet?}
+        D2 -- Applied --> SKIP([Skip])
+        D2 -- Incomplete --> ROW
+        D2 -- New --> V1
+    end
+
+    subgraph VET["3. Vet"]
+        V1[Open company + role page in new tab] --> V2{Pass filters?<br/>remote, India/worldwide or 3+ countries<br/>no India office, not agency<br/>level, pay, not AI title}
+        V2 -- No --> REJ[Sheet2: Skipped reason] --> SKIP
+        V2 -- Yes --> V3{Role still open?<br/>careers/ATS + LinkedIn posts}
+        V3 -- Closed --> REJ
+        V3 -- Open --> ROW
+    end
+
+    subgraph WORK["4. Per open company (HARD GATE order)"]
+        ROW[a. Sheet2 row<br/>links, emails, company LinkedIn, follow-up +5d] --> PPL[b. People: CEO, CTO, HM, HR, TL<br/>handle, location, email]
+        PPL --> EXT
+
+        subgraph APPLY["c. Apply on company's own page"]
+            EXT{Own apply link on page<br/>or found by web search?}
+            EXT -- No --> NOEXT[Log: no external page<br/>email + LinkedIn only]
+            EXT -- Yes --> HS{Hard stop?<br/>on-site, US-citizen, India office,<br/>agency, closed}
+            HS -- Yes --> REJ2[Log Skipped: reason]
+            HS -- No --> FILL[Upload role PDF, fill all fields<br/>standard answers, city Mumbai<br/>write free-text myself]
+            FILL --> GATE{CAPTCHA, login,<br/>typed-phrase gate?}
+            GATE -- Yes --> WAIT[Mark Waiting on user<br/>link + step]
+            GATE -- No --> SUB[Submit, save confirmation<br/>close tab]
+        end
+
+        NOEXT --> DR
+        REJ2 --> DR
+        WAIT --> DR
+        SUB --> DR
+        DR[d. ONE Gmail draft<br/>all people in To, subject-click save<br/>never near Send]
+        DR --> LI
+
+        subgraph LINK["e. LinkedIn per person"]
+            LI{India/Pakistan<br/>or Tax Pilot?}
+            LI -- Yes --> LSK[Log Skipped]
+            LI -- No --> LR[Connection request<br/>note if offered, else plain<br/>verify name in dialog]
+            LR --> LC[Comments on quiet posts<br/>CEO, CTO up to 3 / HM, HR, TL 1 each<br/>no numbers, no India]
+        end
+
+        LSK --> LOG
+        LC --> LOG
+        LOG[f. Log Sheet2 status, Sheet3 per person<br/>verify in Sent invitations]
+    end
+
+    LOG --> MORE{More companies?}
+    MORE -- Yes --> D2
+    MORE -- No --> REP([Final report + My opinion])

@@ -47,5 +47,12 @@ f. **Log**: Sheet2 status `Applied <date> (<ATS>) + drafted`, Sheet3 row per per
 - If a step has no tool path (people not found, no Connect button, email-required invite), mark it BLOCKED with the reason and continue.
 - Comment mechanics that work: open the person's `/in/<handle>/recent-activity/all/`, wait 6 s, click the post's comment icon, click into the box, type, then click the blue Comment button after a screenshot (verify the post's comment count went up). A typed comment is not posted until the button is clicked.
 
+## 5b. Daily refresh (how to run it every day)
+- The sheet diff makes every run incremental: day 1 works the whole list, later days only the companies and roles that are new since the last run (plus incomplete rows and `Waiting on user` items from earlier days). Nothing already Applied is touched.
+- Order each day: (1) reconcile Gmail Sent/bounces into the sheet; (2) finish incomplete rows and `Waiting on user` items; (3) run sections 1-4 on the new list; (4) final report.
+- Run by hand: type `/yc-jobs` (or `/yc-jobs 10` to cap new companies). Keep Chrome open, signed in to Gmail (u/1), LinkedIn and Google Sheets, with the YC list in the Claude tab group.
+- Repeat inside one session: `/loop 24h /yc-jobs` (self-paced loop). Unattended on a schedule: `/schedule` a daily routine with the prompt `/yc-jobs`. A scheduled run needs the signed-in Chrome profile on this Mac to be open; if a login wall or CAPTCHA appears it parks the item as `Waiting on user` and continues.
+- Hard limits are unchanged on every run: no CAPTCHA solving, no passwords or accounts, drafts only (never send), never Apply or message on workatastartup.com, never LinkedIn Jobs, stop LinkedIn work at any warning.
+
 ## 6. Final report (once)
 Counts: seen, already in sheet, new, rejected (with reasons), applied, drafted, LinkedIn requests (sent/pending/blocked), comments (done/left), HOLD list with the exact user step. End with "My opinion:" (one or two lines).
