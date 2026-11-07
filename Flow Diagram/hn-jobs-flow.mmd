@@ -1,0 +1,33 @@
+flowchart TD
+    START([/hn-hiring]) --> A1
+    subgraph COLLECT["1. Collect (read only)"]
+        A1[Newest Who is hiring thread via Algolia<br/>last 3 weeks] --> A2[Keep remote, drop US-only,<br/>EU-only, on-site, agencies, sales]
+        A2 --> A3{Pay stated?}
+    end
+    A3 -- "Yes, below floor" --> REJ[Skipped: pay]
+    A3 -- "No, or at/above floor" --> V1
+    subgraph VET["2. Vet on the company's own page"]
+        V1[Open careers board / ATS<br/>Ashby, Gem, Personio, Recruitee] --> V2{Hard stop?<br/>city-bound, Office/Hybrid,<br/>US-citizen, India office, agency, closed}
+        V2 -- Yes --> SK[Skipped: reason<br/>still fill founders, emails, all columns]
+        V2 -- No --> P1
+    end
+    subgraph WORK["3. Per company"]
+        P1[People: CEO, CTO, HM, HR, TL, senior eng<br/>LinkedIn company People tab + name search<br/>skip India/Pakistan] --> E1[Emails: published else first@domain guessed]
+        E1 --> AP[Apply on ATS<br/>role-family PDF, standard answers]
+        AP --> G{Video-only question,<br/>CAPTCHA, login?}
+        G -- Yes --> W[Waiting on user: step + link]
+        G -- No --> S[Submit, confirm page]
+        W --> D
+        S --> D
+        D[ONE Gmail draft, all people in To<br/>subject-click save] --> L[LinkedIn plain requests<br/>custom-invite URL, name check]
+        L --> L2{Dialog asks for email?}
+        L2 -- Yes --> B[Log Blocked: email required]
+        L2 -- No --> OK[Sent plain]
+        B --> LOG
+        OK --> LOG
+        LOG[Sheet2 row A-S all filled<br/>M plain date, Q FALSE<br/>Sheet3 row per person]
+    end
+    SK --> LOG
+    LOG --> NEXT{More leads?}
+    NEXT -- Yes --> V1
+    NEXT -- No --> REP([Report + My opinion])
