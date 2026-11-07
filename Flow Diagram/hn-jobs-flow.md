@@ -1,61 +1,77 @@
 # HN Jobs Flow (skill: `/hn-hiring`)
 
-Source skill: `.claude/commands/hn-hiring.md` (section 6 holds this flow). This file is the readable copy plus the diagram. Keep both in sync.
+Source skill: `.claude/commands/hn-hiring.md` (same layout as `/yc-jobs`). This file is the readable copy plus the flow diagram.
 
-Start: newest "Ask HN: Who is hiring?" thread (https://news.ycombinator.com/submitted?id=whoishiring), read via the Algolia API (`hn.algolia.com/api/v1/items/<thread id>`). Read only on HN.
+Start page (read only): https://news.ycombinator.com/submitted?id=whoishiring
 
-## Diagram
+## Diagram v2: end-to-end flow
 
 ```mermaid
 flowchart TD
-    START([/hn-hiring]) --> A1
-    subgraph COLLECT["1. Collect (read only)"]
-        A1[Newest Who is hiring thread via Algolia<br/>last 3 weeks] --> A2[Keep remote, drop US-only,<br/>EU-only, on-site, agencies, sales]
-        A2 --> A3{Pay stated?}
+    START([/hn-hiring]) --> L1
+
+    subgraph COLLECT["1. Collect (read only on HN)"]
+        L1[Algolia: newest Who is hiring thread] --> L2[Fetch all top-level posts<br/>strip HTML, keep remote<br/>drop US-only, EU-only, on-site, agency, non-eng]
     end
-    A3 -- "Yes, below floor" --> REJ[Skipped: pay]
-    A3 -- "No, or at/above floor" --> V1
-    subgraph VET["2. Vet on the company's own page"]
-        V1[Open careers board / ATS<br/>Ashby, Gem, Personio, Recruitee] --> V2{Hard stop?<br/>city-bound, Office/Hybrid,<br/>US-citizen, India office, agency, closed}
-        V2 -- Yes --> SK[Skipped: reason<br/>still fill founders, emails, all columns]
-        V2 -- No --> P1
+
+    subgraph DIFF["2. Diff against Hunting sheet"]
+        L2 --> D1[Read Sheet2 CSV, match company and domain]
+        D1 --> D2{Company in sheet?}
+        D2 -- Applied --> SKIP([Skip])
+        D2 -- Incomplete --> ROW
+        D2 -- New --> V1
     end
-    subgraph WORK["3. Per company"]
-        P1[People: CEO, CTO, HM, HR, TL, senior eng<br/>LinkedIn company People tab + name search<br/>skip India/Pakistan] --> E1[Emails: published else first@domain guessed]
-        E1 --> AP[Apply on ATS<br/>role-family PDF, standard answers]
-        AP --> G{Video-only question,<br/>CAPTCHA, login?}
-        G -- Yes --> W[Waiting on user: step + link]
-        G -- No --> S[Submit, confirm page]
-        W --> D
-        S --> D
-        D[ONE Gmail draft, all people in To<br/>subject-click save] --> L[LinkedIn plain requests<br/>custom-invite URL, name check]
-        L --> L2{Dialog asks for email?}
-        L2 -- Yes --> B[Log Blocked: email required]
-        L2 -- No --> OK[Sent plain]
-        B --> LOG
+
+    subgraph VET["3. Vet on company's own page"]
+        V1[Open careers/ATS page in new tab] --> V2{Pass filters?<br/>remote, worldwide or India/APAC<br/>no India office, not agency<br/>engineering, pay ok or unstated}
+        V2 -- No --> REJ[Sheet2: Skipped reason<br/>still fill founders, emails, site] --> SKIP
+        V2 -- Yes --> V3{Role still open?<br/>not closed, not 404}
+        V3 -- Closed --> REJ
+        V3 -- Open --> ROW
+    end
+
+    subgraph WORK["4. Per open company (HARD GATE order)"]
+        ROW[a. Sheet2 row A-S] --> PPL[b. People: CEO, CTO, HM, HR, TL, senior eng<br/>handle, location, email]
+        PPL --> CH{How does the post say to apply?}
+        CH -- ATS or careers form --> FILL[Upload role PDF, standard answers<br/>How heard: HN Who is hiring]
+        CH -- Email --> EM[Application as Gmail draft to the post address<br/>follow its subject and asks]
+        FILL --> GATE{Video-only, CAPTCHA,<br/>login, required PR?}
+        GATE -- Yes --> WAIT[Waiting on user<br/>link + step]
+        GATE -- No --> SUB[Submit, close tab]
+        SUB --> DR
+        WAIT --> DR
+        EM --> DR
+        DR[d. ONE Gmail draft<br/>all people in To, subject-click save] --> LI
+        LI{India/Pakistan or Tax Pilot?}
+        LI -- Yes --> LSK[Log Skipped]
+        LI -- No --> LR[Plain connection request<br/>verify name in dialog]
+        LR --> LB{Email required?}
+        LB -- Yes --> BL[Log Blocked]
+        LB -- No --> OK[Sent / Pending]
+        LSK --> LOG
+        BL --> LOG
         OK --> LOG
-        LOG[Sheet2 row A-S all filled<br/>M plain date, Q FALSE<br/>Sheet3 row per person]
+        LOG[f. Log Sheet2 status, Sheet3 per person]
     end
-    SK --> LOG
-    LOG --> NEXT{More leads?}
-    NEXT -- Yes --> V1
-    NEXT -- No --> REP([Report + My opinion])
+
+    LOG --> MORE{More new posts?}
+    MORE -- Yes --> D2
+    MORE -- No --> REP([Final report + My opinion])
 ```
 
-PNG: `hn-jobs-flow.png`.
-
 ## Rules in one place
-- **No pay stated is not a reason to drop.** Apply, draft, reach people on LinkedIn, log the sheet row with every column, record every persona. Pay shown below the floor (~$35k top) still fails.
-- **Vet on the company's own page.** HN says "remote" but the ATS may say Office/Hybrid or city-bound (Namespace, Rootly were skipped for that). Hard stops: city-bound or hybrid-only, US-citizen/work-authorization, India office, agency, closed role. Log `Skipped: <reason>` and still fill founders, emails, website, careers link.
-- **Apply** on the company ATS (Personio, Ashby, Recruitee, Gem, Greenhouse, Lever) with the matching role-family PDF; standard answers ($60,000 USD, available to start soon, Maharashtra/Mumbai); free text written myself, truthful, no numbers, gaps are "ramping up". Only a video-only question, CAPTCHA or login stops it (`Waiting on user`).
-- **People:** CEO/founders, CTO, hiring manager, HR/recruiter, team lead, senior engineer, from the LinkedIn company People tab and name searches. Skip India/Pakistan. Emails published first, else `first@domain` (guessed).
-- **One Gmail draft per company**, everyone in To, subject `<Role> - <Company> | Rahul Jha, Atlassian engineer`, saved by clicking the subject, typing one space and waiting 20 s. Never near Send.
-- **LinkedIn:** plain request through the custom-invite URL with a dialog name check; "email required" is logged as Blocked.
-- **Sheet:** Sheet2 columns A to S all filled (M is a plain date, Q is the FALSE checkbox), Sheet3 one row per person.
+- Diff every post against Sheet2 first; only new posts and incomplete rows get work.
+- Vet on the company's own page; no pay stated is not a drop; closed, city-bound, India office, agency, non-engineering are.
+- Apply by the channel the post names: ATS form, or email (draft to the post's address). Stops: video-only, CAPTCHA, login, required PR.
+- One Gmail draft, plain LinkedIn requests, Sheet2 A-S and Sheet3 rows. One company at a time.
 
-## First run (2026-11-07, November 2026 thread)
-Eventfirst (applied, Personio), NetBird (applied, Ashby), Tether (waiting on a video answer), Eleshop (email-to-apply draft), Namespace and Rootly (skipped: not remote).
+## Columns, LinkedIn and email (v3)
+- **Sheet2 A to S** each have a defined meaning in the skill (section 3b): A link, B/C/D emails, E people with LinkedIn, F company LinkedIn, G open source, H website, I careers link, J LinkedIn status, K response, L follow-up count, M follow-up date, N added by, O status, P email sent, Q email failed, R stage, S stage date. Sheet3 has A to F per person.
+- **LinkedIn (4c):** follow the company page, request CEO/CTO/hiring manager/team lead/senior engineer plainly (note only if LinkedIn still offers one), comment on a quiet post, mark email-required invites `Blocked`, verify in the sent list.
+- **Email (4d):** one draft per company, everyone in To; open compose by navigation, screenshot first, check Drafts rose and Sent did not.
+- **Bot-check gates (4e):** typed-phrase and CAPTCHA steps are the user's; log Applied only after the confirmation page.
 
----
 ## Change log
-- v1 (2026-11-07): HN flow for leads with no pay stated.
+- v3 (2026-11-08): all Hunting sheet columns defined, LinkedIn outreach steps, email safety rules, bot-check gates.
+- v1 (2026-11-07): flow for leads with no pay stated.
+- v2 (2026-11-08): restructured like yc-jobs (collect, diff, vet, per-company gate, daily refresh); added the closed-role check and the email-apply branch.
